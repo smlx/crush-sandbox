@@ -1,0 +1,92 @@
+#!/bin/bash
+set -euo pipefail
+
+red='\033[0;31m'
+green='\033[0;32m'
+yellow='\033[0;33m'
+reset='\033[0m'
+
+# bind mounting home would expose sensitive credentials and dotfiles
+[ "$(realpath "$PWD")" = "$(realpath "$HOME")" ] && echo -e "${red}🛑 Not starting crush in $HOME.${reset}" && exit 1
+
+check_api_keys() {
+	local status_set="${green}✅ Set${reset}"
+	local status_unset="${yellow}⚠️ Not set${reset}"
+
+	local gemini_status="$status_unset"
+	local amazee_status="$status_unset"
+
+	[ -v GEMINI_API_KEY ] && gemini_status="$status_set"
+	[ -v AMAZEEAI_API_KEY ] && amazee_status="$status_set"
+
+	echo "API Keys:"
+	echo -e "  GEMINI_API_KEY:   $gemini_status"
+	echo -e "  AMAZEEAI_API_KEY: $amazee_status"
+	echo ""
+
+	if ! [ -v GEMINI_API_KEY ] && ! [ -v AMAZEEAI_API_KEY ]; then
+		echo -e "${red}🛑 Error: No API key set. Exiting.${reset}"
+		exit 1
+	elif ! [ -v GEMINI_API_KEY ] || ! [ -v AMAZEEAI_API_KEY ]; then
+		GEMINI_API_KEY="${GEMINI_API_KEY:-}"
+		AMAZEEAI_API_KEY="${AMAZEEAI_API_KEY:-}"
+		read -rp "👉 Press [Enter] to continue... "
+	fi
+}
+
+check_api_keys
+
+EXTRA_BINDS=()
+for path in "$@"; do
+	EXTRA_BINDS+=("--property=BindReadOnlyPaths=$(realpath "$path")")
+done
+
+# execute crush in a sandbox
+# see: man systemd-run systemd.exec systemd.resource-control
+exec systemd-run \
+	--collect \
+	--pty \
+	--same-dir \
+	--setenv=AMAZEEAI_API_KEY="$AMAZEEAI_API_KEY" \
+	--setenv=APPIMAGE_EXTRACT_AND_RUN=1 \
+	--setenv=EDITOR="$EDITOR" \
+	--setenv=GEMINI_API_KEY="$GEMINI_API_KEY" \
+	--setenv=PATH="$PATH" \
+	--setenv=SSH_AUTH_SOCK="$SSH_AUTH_SOCK" \
+	--setenv=CRUSH_SHORT_TOOL_DESCRIPTIONS=1 \
+	--unit="crush-sandbox-$(basename "$PWD")-$RANDOM" \
+	--user \
+	--property=BindPaths="$HOME/.cache" \
+	--property=BindPaths="$HOME/.config/crush" \
+	--property=BindPaths="$HOME/.local/share/crush" \
+	--property=BindPaths="$HOME/.local/share/nvim" \
+	--property=BindPaths="$HOME/.local/state/crush" \
+	--property=BindPaths="$HOME/.local/state/nvim" \
+	--property=BindPaths="$HOME/go" \
+	--property=BindPaths="$PWD" \
+	--property=BindPaths="$SSH_AUTH_SOCK" \
+	--property=BindPaths="/run/user/$UID/bus" \
+	--property=BindReadOnlyPaths="$HOME/.config/git" \
+	--property=BindReadOnlyPaths="$HOME/.config/nvim" \
+	--property=CapabilityBoundingSet= \
+	--property=LockPersonality=true \
+	--property=NoNewPrivileges=true \
+	--property=PrivateDevices=true \
+	--property=PrivateIPC=true \
+	--property=PrivateTmp=true \
+	--property=PrivateUsers=true \
+	--property=ProtectClock=true \
+	--property=ProtectControlGroups=true \
+	--property=ProtectHome=tmpfs \
+	--property=ProtectKernelLogs=true \
+	--property=ProtectKernelModules=true \
+	--property=ProtectKernelTunables=true \
+	--property=ProtectSystem=strict \
+	--property=RestrictNamespaces=true \
+	--property=RestrictRealtime=true \
+	--property=RestrictSUIDSGID=true \
+	--property=SystemCallArchitectures=native \
+	--property=SystemCallErrorNumber=EPERM \
+	--property=SystemCallFilter=@system-service \
+	"${EXTRA_BINDS[@]}" \
+	/usr/local/libexec/crush --debug
