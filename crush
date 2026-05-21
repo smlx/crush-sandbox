@@ -34,6 +34,17 @@ check_api_keys() {
 	fi
 }
 
+if [ "${GEMINI_API_KEY_COMMAND:-}" != "" ]; then
+	echo "Running command \"$GEMINI_API_KEY_COMMAND\" to get GEMINI_API_KEY..."
+	read -rp "👉 Press [Enter] to run command... "
+	GEMINI_API_KEY=$($GEMINI_API_KEY_COMMAND)
+fi
+
+if [ "${AMAZEEAI_API_KEY_COMMAND:-}" != "" ]; then
+	echo "Running command \"$AMAZEEAI_API_KEY_COMMAND\" to get AMAZEEAI_API_KEY..."
+	read -rp "👉 Press [Enter] to run command... "
+	AMAZEEAI_API_KEY=$($AMAZEEAI_API_KEY_COMMAND)
+fi
 check_api_keys
 
 EXTRA_BINDS=()
@@ -53,11 +64,11 @@ exec systemd-run \
 	--setenv=GEMINI_API_KEY="$GEMINI_API_KEY" \
 	--setenv=PATH="$PATH" \
 	--setenv=SSH_AUTH_SOCK="$SSH_AUTH_SOCK" \
-	--setenv=CRUSH_SHORT_TOOL_DESCRIPTIONS=1 \
 	--unit="crush-sandbox-$(basename "$PWD")-$RANDOM" \
 	--user \
 	--property=BindPaths="$HOME/.cache" \
 	--property=BindPaths="$HOME/.config/crush" \
+	--property=BindPaths="$HOME/.docker" \
 	--property=BindPaths="$HOME/.local/share/crush" \
 	--property=BindPaths="$HOME/.local/share/nvim" \
 	--property=BindPaths="$HOME/.local/state/crush" \
