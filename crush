@@ -34,17 +34,20 @@ check_api_keys() {
 	fi
 }
 
-if [ "${GEMINI_API_KEY_COMMAND:-}" != "" ]; then
-	echo "Running command \"$GEMINI_API_KEY_COMMAND\" to get GEMINI_API_KEY..."
+if ! [ -v GEMINI_API_KEY ] && declare -F gemini_api_key_command >/dev/null; then
+	echo "Executing bash function to get Gemini api key:"
+	type gemini_api_key_command
 	read -rp "👉 Press [Enter] to run command... "
-	GEMINI_API_KEY=$($GEMINI_API_KEY_COMMAND)
+	GEMINI_API_KEY=$(gemini_api_key_command)
 fi
 
-if [ "${AMAZEEAI_API_KEY_COMMAND:-}" != "" ]; then
-	echo "Running command \"$AMAZEEAI_API_KEY_COMMAND\" to get AMAZEEAI_API_KEY..."
+if ! [ -v AMAZEEAI_API_KEY ] && declare -F amazeeai_api_key_command >/dev/null; then
+	echo "Executing bash function to get amazee.ai api key:"
+	type amazeeai_api_key_command
 	read -rp "👉 Press [Enter] to run command... "
-	AMAZEEAI_API_KEY=$($AMAZEEAI_API_KEY_COMMAND)
+	AMAZEEAI_API_KEY=$(amazeeai_api_key_command)
 fi
+
 check_api_keys
 
 EXTRA_BINDS=()
