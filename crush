@@ -69,6 +69,7 @@ exec systemd-run \
 	--setenv=SSH_AUTH_SOCK="$SSH_AUTH_SOCK" \
 	--unit="crush-sandbox-$(basename "$PWD")-$RANDOM" \
 	--user \
+	--property=BindPaths="$HOME/.ansible" \
 	--property=BindPaths="$HOME/.cache" \
 	--property=BindPaths="$HOME/.config/crush" \
 	--property=BindPaths="$HOME/.docker" \
