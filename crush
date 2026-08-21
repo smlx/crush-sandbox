@@ -32,13 +32,13 @@ interactive_menu() {
 			IFS=":" read -r var_name cmd_func label category <<< "$item"
 
 			if [ "$category" != "$current_category" ]; then
-				[ -n "$current_category" ] && echo ""
+				[ "$current_category" != "" ] && echo ""
 				echo -e "${bold}${category}${reset}"
 				current_category="$category"
 			fi
 
 			local var_status="${yellow}[UNSET]${reset}"
-			if [ -v "$var_name" ] && [ -n "${!var_name}" ]; then
+			if [ -v "$var_name" ] && [ "${!var_name}" != "" ]; then
 				var_status="${green}[ SET ]${reset}"
 			fi
 
@@ -73,7 +73,7 @@ interactive_menu() {
 						local val
 						val="$("$cmd_func")"
 						printf -v "$var_name" '%s' "$val"
-						export "$var_name"
+						export "${var_name?}"
 						echo -e "${green}✅ Updated $var_name${reset}"
 					else
 						echo -e "\n${red}⚠️ Function '$cmd_func' is not defined.${reset}"
@@ -89,20 +89,15 @@ interactive_menu() {
 	done
 }
 
-check_api_keys() {
-	if ! [ -v GEMINI_API_KEY ] && ! [ -v AMAZEEAI_API_KEY ] && ! [ -v HYPER_API_KEY ]; then
-		echo -e "${red}🛑 Error: No API key set. Exiting.${reset}"
-		exit 1
-	fi
-
-	GEMINI_API_KEY="${GEMINI_API_KEY:-}"
-	AMAZEEAI_API_KEY="${AMAZEEAI_API_KEY:-}"
-	HYPER_API_KEY="${HYPER_API_KEY:-}"
-	GITHUB_PAT="${GITHUB_PAT:-}"
-}
-
 interactive_menu
-check_api_keys
+
+ENV_ARGS=()
+for item in "${KEY_CONFIGS[@]}"; do
+	IFS=":" read -r var_name _ _ _ <<< "$item"
+	if [ -v "$var_name" ] && [ "${!var_name}" != "" ]; then
+		ENV_ARGS+=("--setenv=${var_name}=${!var_name}")
+	fi
+done
 
 EXTRA_BINDS=()
 for path in "$@"; do
@@ -115,14 +110,11 @@ exec systemd-run \
 	--collect \
 	--pty \
 	--same-dir \
-	--setenv=AMAZEEAI_API_KEY="$AMAZEEAI_API_KEY" \
+	"${ENV_ARGS[@]}" \
 	--setenv=APPIMAGE_EXTRACT_AND_RUN=1 \
-	--setenv=EDITOR="$EDITOR" \
-	--setenv=GEMINI_API_KEY="$GEMINI_API_KEY" \
-	--setenv=GITHUB_PAT="$GITHUB_PAT" \
-	--setenv=HYPER_API_KEY="$HYPER_API_KEY" \
+	--setenv=EDITOR="${EDITOR:-}" \
 	--setenv=PATH="$PATH" \
-	--setenv=SSH_AUTH_SOCK="$SSH_AUTH_SOCK" \
+	--setenv=SSH_AUTH_SOCK="${SSH_AUTH_SOCK:-}" \
 	--unit="crush-sandbox-$(basename "$PWD")-$RANDOM" \
 	--user \
 	--property=BindPaths="$HOME/.ansible" \
