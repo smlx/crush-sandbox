@@ -15,21 +15,25 @@ check_api_keys() {
 
 	local gemini_status="$status_unset"
 	local amazee_status="$status_unset"
+	local hyper_status="$status_unset"
 
 	[ -v GEMINI_API_KEY ] && gemini_status="$status_set"
 	[ -v AMAZEEAI_API_KEY ] && amazee_status="$status_set"
+	[ -v HYPER_API_KEY ] && hyper_status="$status_set"
 
 	echo "API Keys:"
 	echo -e "  GEMINI_API_KEY:   $gemini_status"
 	echo -e "  AMAZEEAI_API_KEY: $amazee_status"
+	echo -e "  HYPER_API_KEY: $hyper_status"
 	echo ""
 
-	if ! [ -v GEMINI_API_KEY ] && ! [ -v AMAZEEAI_API_KEY ]; then
+	if ! [ -v GEMINI_API_KEY ] && ! [ -v AMAZEEAI_API_KEY ] && ! [ -v HYPER_API_KEY ]; then
 		echo -e "${red}🛑 Error: No API key set. Exiting.${reset}"
 		exit 1
-	elif ! [ -v GEMINI_API_KEY ] || ! [ -v AMAZEEAI_API_KEY ]; then
+	elif ! [ -v GEMINI_API_KEY ] || ! [ -v AMAZEEAI_API_KEY ] || ! [ -v HYPER_API_KEY ]; then
 		GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 		AMAZEEAI_API_KEY="${AMAZEEAI_API_KEY:-}"
+		HYPER_API_KEY="${HYPER_API_KEY:-}"
 		read -rp "👉 Press [Enter] to continue... "
 	fi
 }
@@ -46,6 +50,20 @@ if ! [ -v AMAZEEAI_API_KEY ] && declare -F amazeeai_api_key_command >/dev/null; 
 	type amazeeai_api_key_command
 	read -rp "👉 Press [Enter] to run command... "
 	AMAZEEAI_API_KEY=$(amazeeai_api_key_command)
+fi
+
+if ! [ -v HYPER_API_KEY ] && declare -F hyper_api_key_command >/dev/null; then
+	echo "Executing bash function to get Hyper api key:"
+	type hyper_api_key_command
+	read -rp "👉 Press [Enter] to run command... "
+	HYPER_API_KEY=$(hyper_api_key_command)
+fi
+
+if ! [ -v GITHUB_PAT ] && declare -F github_pat_command >/dev/null; then
+	echo "Executing bash function to get GitHub personal access token:"
+	type github_pat_command
+	read -rp "👉 Press [Enter] to run command... "
+	GITHUB_PAT=$(github_pat_command)
 fi
 
 check_api_keys
@@ -65,6 +83,8 @@ exec systemd-run \
 	--setenv=APPIMAGE_EXTRACT_AND_RUN=1 \
 	--setenv=EDITOR="$EDITOR" \
 	--setenv=GEMINI_API_KEY="$GEMINI_API_KEY" \
+	--setenv=GITHUB_PAT="$GITHUB_PAT" \
+	--setenv=HYPER_API_KEY="$HYPER_API_KEY" \
 	--setenv=PATH="$PATH" \
 	--setenv=SSH_AUTH_SOCK="$SSH_AUTH_SOCK" \
 	--unit="crush-sandbox-$(basename "$PWD")-$RANDOM" \
