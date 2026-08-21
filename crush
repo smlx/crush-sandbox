@@ -4,68 +4,104 @@ set -euo pipefail
 red='\033[0;31m'
 green='\033[0;32m'
 yellow='\033[0;33m'
+cyan='\033[0;36m'
+dim='\033[2m'
+bold='\033[1m'
 reset='\033[0m'
 
 # bind mounting home would expose sensitive credentials and dotfiles
 [ "$(realpath "$PWD")" = "$(realpath "$HOME")" ] && echo -e "${red}🛑 Not starting crush in $HOME.${reset}" && exit 1
 
+KEY_CONFIGS=(
+	"GEMINI_API_KEY:gemini_api_key_command:Gemini API Key:LLM Providers:"
+	"AMAZEEAI_API_KEY:amazeeai_api_key_command:amazee.ai API Key:LLM Providers:"
+	"HYPER_API_KEY:hyper_api_key_command:Hyper API Key:LLM Providers:"
+	"GITHUB_PAT:github_pat_command:GitHub PAT:Other Credentials:"
+)
+
+interactive_menu() {
+	while true; do
+		echo ""
+		printf " %-2s %-21s %-11s %s\n" "#" "Variable" "Status" "Generator Command"
+		echo "────────────────────────────────────────────────────────────────────────"
+
+		local idx=1
+		local current_category=""
+
+		for item in "${KEY_CONFIGS[@]}"; do
+			IFS=":" read -r var_name cmd_func label category <<< "$item"
+
+			if [ "$category" != "$current_category" ]; then
+				[ -n "$current_category" ] && echo ""
+				echo -e "${bold}${category}${reset}"
+				current_category="$category"
+			fi
+
+			local var_status="${yellow}[UNSET]${reset}"
+			if [ -v "$var_name" ] && [ -n "${!var_name}" ]; then
+				var_status="${green}[ SET ]${reset}"
+			fi
+
+			local cmd_status="${dim}-- none --${reset}"
+			if declare -F "$cmd_func" >/dev/null; then
+				cmd_status="${cyan}${cmd_func}${reset}"
+			fi
+
+			printf " %-2d %-21s %b     %b\n" "$idx" "$label" "$var_status" "$cmd_status"
+			((idx++))
+		done
+
+		echo ""
+		read -rp "👉 Press [Enter] to start crush, [1-$((idx-1))] to run command, [q] to quit: " choice
+
+		case "$choice" in
+			"")
+				break
+				;;
+			[qQ])
+				echo "Aborted."
+				exit 0
+				;;
+			[1-9])
+				if [ "$choice" -ge 1 ] && [ "$choice" -le "${#KEY_CONFIGS[@]}" ]; then
+					local selected="${KEY_CONFIGS[$((choice-1))]}"
+					IFS=":" read -r var_name cmd_func label category <<< "$selected"
+
+					if declare -F "$cmd_func" >/dev/null; then
+						echo -e "\nExecuting function ${cyan}$cmd_func${reset}:"
+						type "$cmd_func"
+						local val
+						val="$("$cmd_func")"
+						printf -v "$var_name" '%s' "$val"
+						export "$var_name"
+						echo -e "${green}✅ Updated $var_name${reset}"
+					else
+						echo -e "\n${red}⚠️ Function '$cmd_func' is not defined.${reset}"
+					fi
+				else
+					echo -e "${red}Invalid option.${reset}"
+				fi
+				;;
+			*)
+				echo -e "${red}Invalid option.${reset}"
+				;;
+		esac
+	done
+}
+
 check_api_keys() {
-	local status_set="${green}✅ Set${reset}"
-	local status_unset="${yellow}⚠️ Not set${reset}"
-
-	local gemini_status="$status_unset"
-	local amazee_status="$status_unset"
-	local hyper_status="$status_unset"
-
-	[ -v GEMINI_API_KEY ] && gemini_status="$status_set"
-	[ -v AMAZEEAI_API_KEY ] && amazee_status="$status_set"
-	[ -v HYPER_API_KEY ] && hyper_status="$status_set"
-
-	echo "API Keys:"
-	echo -e "  GEMINI_API_KEY:   $gemini_status"
-	echo -e "  AMAZEEAI_API_KEY: $amazee_status"
-	echo -e "  HYPER_API_KEY: $hyper_status"
-	echo ""
-
 	if ! [ -v GEMINI_API_KEY ] && ! [ -v AMAZEEAI_API_KEY ] && ! [ -v HYPER_API_KEY ]; then
 		echo -e "${red}🛑 Error: No API key set. Exiting.${reset}"
 		exit 1
-	elif ! [ -v GEMINI_API_KEY ] || ! [ -v AMAZEEAI_API_KEY ] || ! [ -v HYPER_API_KEY ]; then
-		GEMINI_API_KEY="${GEMINI_API_KEY:-}"
-		AMAZEEAI_API_KEY="${AMAZEEAI_API_KEY:-}"
-		HYPER_API_KEY="${HYPER_API_KEY:-}"
-		read -rp "👉 Press [Enter] to continue... "
 	fi
+
+	GEMINI_API_KEY="${GEMINI_API_KEY:-}"
+	AMAZEEAI_API_KEY="${AMAZEEAI_API_KEY:-}"
+	HYPER_API_KEY="${HYPER_API_KEY:-}"
+	GITHUB_PAT="${GITHUB_PAT:-}"
 }
 
-if ! [ -v GEMINI_API_KEY ] && declare -F gemini_api_key_command >/dev/null; then
-	echo "Executing bash function to get Gemini api key:"
-	type gemini_api_key_command
-	read -rp "👉 Press [Enter] to run command... "
-	GEMINI_API_KEY=$(gemini_api_key_command)
-fi
-
-if ! [ -v AMAZEEAI_API_KEY ] && declare -F amazeeai_api_key_command >/dev/null; then
-	echo "Executing bash function to get amazee.ai api key:"
-	type amazeeai_api_key_command
-	read -rp "👉 Press [Enter] to run command... "
-	AMAZEEAI_API_KEY=$(amazeeai_api_key_command)
-fi
-
-if ! [ -v HYPER_API_KEY ] && declare -F hyper_api_key_command >/dev/null; then
-	echo "Executing bash function to get Hyper api key:"
-	type hyper_api_key_command
-	read -rp "👉 Press [Enter] to run command... "
-	HYPER_API_KEY=$(hyper_api_key_command)
-fi
-
-if ! [ -v GITHUB_PAT ] && declare -F github_pat_command >/dev/null; then
-	echo "Executing bash function to get GitHub personal access token:"
-	type github_pat_command
-	read -rp "👉 Press [Enter] to run command... "
-	GITHUB_PAT=$(github_pat_command)
-fi
-
+interactive_menu
 check_api_keys
 
 EXTRA_BINDS=()
