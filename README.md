@@ -9,12 +9,25 @@ An ephemeral [systemd-run](https://www.freedesktop.org/software/systemd/man/late
 - 🔑 **API Key Check**: Requires a valid provider key (e.g., `GEMINI_API_KEY`) before launching.
 - 🔗 **Extra Read-Only Paths**: Pass additional paths as arguments for safe, read-only access.
 
+## Prerequisites
+
+Ensure `systemd` is in use, and `xdg-dbus-proxy` is installed.
+
 ## Installation
 
-1. Ensure you have `systemd`.
-2. Install `crush` to `/usr/local/libexec/crush`.
-3. Place this wrapper script in your `$PATH` and make it executable:
+1. Install the upstream `crush` binary to `/usr/local/libexec/crush`.
+1. Install the user service template:
+
    ```bash
+   mkdir -p ~/.config/systemd/user
+   cp crush-proxy@.service ~/.config/systemd/user/
+   systemctl --user daemon-reload
+   ```
+
+1. Place the wrapper script in your `$PATH` and make it executable:
+
+   ```bash
+   cp crush ~/.local/bin/
    chmod +x /usr/local/bin/crush
    ```
 
@@ -24,7 +37,7 @@ Export a credential and run inside your project directory:
 
 ```bash
 cd /path/to/project
- export GEMINI_API_KEY=AZBY... # add leading space to keep it out of bash history
+ export GEMINI_API_KEY=AZBY... # optional export variable
 crush [optional/read-only/paths...]
 ```
 

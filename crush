@@ -104,6 +104,11 @@ for path in "$@"; do
 	EXTRA_BINDS+=("--property=BindReadOnlyPaths=$(realpath "$path")")
 done
 
+SESSION_ID="$(basename "$PWD")-$RANDOM"
+UNIT_NAME="crush-sandbox-${SESSION_ID}"
+PROXY_UNIT="crush-proxy@${SESSION_ID}"
+PROXY_BUS="/run/user/$UID/crush-sandbox-${SESSION_ID}-bus/bus"
+
 # execute crush in a sandbox
 # see: man systemd-run systemd.exec systemd.resource-control
 exec systemd-run \
@@ -115,8 +120,10 @@ exec systemd-run \
 	--setenv=EDITOR="${EDITOR:-}" \
 	--setenv=PATH="$PATH" \
 	--setenv=SSH_AUTH_SOCK="${SSH_AUTH_SOCK:-}" \
-	--unit="crush-sandbox-$(basename "$PWD")-$RANDOM" \
+	--unit="$UNIT_NAME" \
 	--user \
+	--property=Requires="${PROXY_UNIT}.service" \
+	--property=After="${PROXY_UNIT}.service" \
 	--property=BindPaths="$HOME/.ansible" \
 	--property=BindPaths="$HOME/.cache" \
 	--property=BindPaths="$HOME/.config/crush" \
@@ -128,7 +135,7 @@ exec systemd-run \
 	--property=BindPaths="$HOME/go" \
 	--property=BindPaths="$PWD" \
 	--property=BindPaths="$SSH_AUTH_SOCK" \
-	--property=BindPaths="/run/user/$UID/bus" \
+	--property=BindPaths="$PROXY_BUS:/run/user/$UID/bus" \
 	--property=BindReadOnlyPaths="$HOME/.config/git" \
 	--property=BindReadOnlyPaths="$HOME/.config/nvim" \
 	--property=CapabilityBoundingSet= \

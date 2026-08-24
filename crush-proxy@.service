@@ -1,0 +1,9 @@
+[Unit]
+Description=Crush DBus Proxy for %i
+BindsTo=crush-sandbox-%i.service
+StopWhenUnneeded=true
+
+[Service]
+Type=exec
+RuntimeDirectory=crush-sandbox-%i-bus
+ExecStart=/usr/bin/xdg-dbus-proxy unix:path=%t/bus %t/crush-sandbox-%i-bus/bus --filter --see=org.freedesktop.Notifications --talk=org.freedesktop.Notifications
