@@ -12,13 +12,21 @@ reset='\033[0m'
 # bind mounting home would expose sensitive credentials and dotfiles
 [ "$(realpath "$PWD")" = "$(realpath "$HOME")" ] && echo -e "${red}🛑 Not starting crush in $HOME.${reset}" && exit 1
 
-KEY_CONFIGS=(
-	"GEMINI_API_KEY:gemini_api_key_command:Gemini API Key:LLM Providers:"
-	"AMAZEEAI_API_KEY:amazeeai_api_key_command:amazee.ai API Key:LLM Providers:"
-	"HYPER_API_KEY:hyper_api_key_command:Hyper API Key:LLM Providers:"
-	"GITHUB_PAT:github_pat_command_smlx:GitHub PAT smlx:Other Credentials:"
-	"GITHUB_PAT:github_pat_command_amazeeio:GitHub PAT amazeeio:Other Credentials:"
-)
+KEY_CONFIGS=()
+
+while IFS= read -r func; do
+	[ "$func" = "" ] && continue
+	provider="${func#crush_api_key_command_}"
+	var_name="${provider^^}_API_KEY"
+	label="${provider^} API Key"
+	KEY_CONFIGS+=("${var_name}:${func}:${label}:LLM Providers:")
+done < <(compgen -A function crush_api_key_command_ || true)
+
+while IFS= read -r func; do
+	[ "$func" = "" ] && continue
+	suffix="${func#github_pat_command_}"
+	KEY_CONFIGS+=("GITHUB_PAT:${func}:GitHub PAT ${suffix}:Other Credentials:")
+done < <(compgen -A function github_pat_command_ || true)
 
 interactive_menu() {
 	while true; do
@@ -63,7 +71,10 @@ interactive_menu() {
 			echo "Aborted."
 			exit 0
 			;;
-		[1-9])
+		*[!0-9]*)
+			echo -e "${red}Invalid option.${reset}"
+			;;
+		*)
 			if [ "$choice" -ge 1 ] && [ "$choice" -le "${#KEY_CONFIGS[@]}" ]; then
 				local selected="${KEY_CONFIGS[$((choice - 1))]}"
 				IFS=":" read -r var_name cmd_func label category <<<"$selected"
@@ -82,9 +93,6 @@ interactive_menu() {
 			else
 				echo -e "${red}Invalid option.${reset}"
 			fi
-			;;
-		*)
-			echo -e "${red}Invalid option.${reset}"
 			;;
 		esac
 	done
