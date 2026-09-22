@@ -16,7 +16,8 @@ KEY_CONFIGS=(
 	"GEMINI_API_KEY:gemini_api_key_command:Gemini API Key:LLM Providers:"
 	"AMAZEEAI_API_KEY:amazeeai_api_key_command:amazee.ai API Key:LLM Providers:"
 	"HYPER_API_KEY:hyper_api_key_command:Hyper API Key:LLM Providers:"
-	"GITHUB_PAT:github_pat_command:GitHub PAT:Other Credentials:"
+	"GITHUB_PAT:github_pat_command_smlx:GitHub PAT smlx:Other Credentials:"
+	"GITHUB_PAT:github_pat_command_amazeeio:GitHub PAT amazeeio:Other Credentials:"
 )
 
 interactive_menu() {
@@ -29,7 +30,7 @@ interactive_menu() {
 		local current_category=""
 
 		for item in "${KEY_CONFIGS[@]}"; do
-			IFS=":" read -r var_name cmd_func label category <<< "$item"
+			IFS=":" read -r var_name cmd_func label category <<<"$item"
 
 			if [ "$category" != "$current_category" ]; then
 				[ "$current_category" != "" ] && echo ""
@@ -52,39 +53,39 @@ interactive_menu() {
 		done
 
 		echo ""
-		read -rp "👉 Press [Enter] to start crush, [1-$((idx-1))] to run command, [q] to quit: " choice
+		read -rp "👉 Press [Enter] to start crush, [1-$((idx - 1))] to run command, [q] to quit: " choice
 
 		case "$choice" in
-			"")
-				break
-				;;
-			[qQ])
-				echo "Aborted."
-				exit 0
-				;;
-			[1-9])
-				if [ "$choice" -ge 1 ] && [ "$choice" -le "${#KEY_CONFIGS[@]}" ]; then
-					local selected="${KEY_CONFIGS[$((choice-1))]}"
-					IFS=":" read -r var_name cmd_func label category <<< "$selected"
+		"")
+			break
+			;;
+		[qQ])
+			echo "Aborted."
+			exit 0
+			;;
+		[1-9])
+			if [ "$choice" -ge 1 ] && [ "$choice" -le "${#KEY_CONFIGS[@]}" ]; then
+				local selected="${KEY_CONFIGS[$((choice - 1))]}"
+				IFS=":" read -r var_name cmd_func label category <<<"$selected"
 
-					if declare -F "$cmd_func" >/dev/null; then
-						echo -e "\nExecuting function ${cyan}$cmd_func${reset}:"
-						type "$cmd_func"
-						local val
-						val="$("$cmd_func")"
-						printf -v "$var_name" '%s' "$val"
-						export "${var_name?}"
-						echo -e "${green}✅ Updated $var_name${reset}"
-					else
-						echo -e "\n${red}⚠️ Function '$cmd_func' is not defined.${reset}"
-					fi
+				if declare -F "$cmd_func" >/dev/null; then
+					echo -e "\nExecuting function ${cyan}$cmd_func${reset}:"
+					type "$cmd_func"
+					local val
+					val="$("$cmd_func")"
+					printf -v "$var_name" '%s' "$val"
+					export "${var_name?}"
+					echo -e "${green}✅ Updated $var_name${reset}"
 				else
-					echo -e "${red}Invalid option.${reset}"
+					echo -e "\n${red}⚠️ Function '$cmd_func' is not defined.${reset}"
 				fi
-				;;
-			*)
+			else
 				echo -e "${red}Invalid option.${reset}"
-				;;
+			fi
+			;;
+		*)
+			echo -e "${red}Invalid option.${reset}"
+			;;
 		esac
 	done
 }
@@ -93,7 +94,7 @@ interactive_menu
 
 ENV_ARGS=()
 for item in "${KEY_CONFIGS[@]}"; do
-	IFS=":" read -r var_name _ _ _ <<< "$item"
+	IFS=":" read -r var_name _ _ _ <<<"$item"
 	if [ -v "$var_name" ] && [ "${!var_name}" != "" ]; then
 		ENV_ARGS+=("--setenv=${var_name}=${!var_name}")
 	fi
