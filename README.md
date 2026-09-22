@@ -47,7 +47,19 @@ Two that don't support OAuth2:
 1. Gemini API: needs an API key.
 1. GitHub MCP: needs a PAT.
 
-Those are supported by defining a function `gemini_api_key_command` or a function `github_pat_command_xxxx` that returns the token as a string.
+Those are supported by defining a function `crush_api_key_command_xxxx` or a function `github_pat_command_xxxx` that returns the token as a string.
+The `xxxx` can be any string: the script dynamically loads any function matching this pattern and sets either `XXXX_API_KEY` or `GITHUB_PAT` respectively.
+
+These can then be added via `crushrc`:
+
+```bash
+provider add gemini --api-key "$GEMINI_API_KEY"
+
+mcp add github \
+	--type http \
+	--header Authorization "Bearer $GITHUB_PAT" \
+	--url "https://api.githubcopilot.com/mcp/"
+```
 
 ## Gotchas & Limitations
 
