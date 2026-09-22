@@ -4,10 +4,11 @@ An ephemeral [systemd-run](https://www.freedesktop.org/software/systemd/man/late
 
 ## Features
 
-- 🛡️ **Sandboxing**: Isolated via systemd's robust resource controls (`ProtectSystem=strict`, `ProtectHome=tmpfs`).
-- 📂 **Environment Variables and Bind Mounts**: Auto-binds e.g. `$PWD`, config/state dirs, and `SSH_AUTH_SOCK`.
-- 🔑 **API Key Check**: Requires a valid provider key (e.g., `GEMINI_API_KEY`) before launching.
-- 🔗 **Extra Read-Only Paths**: Pass additional paths as arguments for safe, read-only access.
+- Run `crush` in a systemd-run sandbox that restricts access to your system and most paths in `$HOME` outside the local working directory.
+- Configurable filtering of dbus comms to e.g. support desktop notifications while restricting access to the user keyring.
+- Automatically handle common config/state dirs, environment variables like `SSH_AUTH_SOCK`, and other necessary config files.
+- Support API keys from various providers either predefined in an environment variable or dynamically loaded from a password manager.
+- Mount additional paths as arguments to provide read-only access to other directories.
 
 ## Prerequisites
 
@@ -33,19 +34,21 @@ Ensure `systemd` is in use, and `xdg-dbus-proxy` is installed.
 
 ## Usage
 
-Export a credential and run inside your project directory:
+1. Run `crush`.
+2. Configure the launch environment using the interactive prompt.
+3. Launch crush.
 
-```bash
-cd /path/to/project
- export GEMINI_API_KEY=AZBY... # optional export variable
-crush [optional/read-only/paths...]
-```
+## Dynamic loading of credentials
+
+Crush supports OAuth2, so you can get a token dynamically from within crush for many providers.
+
+Two that don't support OAuth2:
+
+1. Gemini API: needs an API key.
+1. GitHub MCP: needs a PAT.
+
+Those are supported by defining a function `gemini_api_key_command` or a function `github_pat_command_xxxx` that returns the token as a string.
 
 ## Gotchas & Limitations
 
-The sandbox results in some limitations:
-
-- 🚫 **No Home Directory Executions**: Execution in `$HOME` is blocked to prevent sensitive data exposure. Run inside project subdirectories only!
-- 🙈 **Hidden Home Files**: `$HOME` is generally inaccessible unless explicitly mounted by the script.
-- 📦 **No System Mods**: Cannot install system packages or modify most directories.
-- 📍 **Hardcoded Path**: Expects the `crush` binary at `/usr/local/libexec/crush`.
+- Execution in `$HOME` is blocked to prevent sensitive data exposure. The crush sandbox is designed to run in project directories only.
